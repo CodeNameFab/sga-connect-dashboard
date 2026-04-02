@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -804,16 +805,14 @@ async function loadData(forceRefresh = false) {
       }
     }
 
+    console.log('🔵 Processing: parsing CSV...');
     document.getElementById('loading-text').textContent = 'Processing responses…';
 
     const rows = parseCSV(text);
+    console.log('🔵 CSV parsed, rows:', rows.length);
     if (rows.length < 2) throw new Error('Sheet appears empty');
 
-    /*
-      Row 0 is the header: ["Response #", "Exact Student Comment", ...]
-      Rows 1+ are data. We map each to a named object for clarity.
-      Column indices match your sheet exactly.
-    */
+    console.log('🔵 Building records...');
     state.records = rows.slice(1)
       .filter(r => r[0] && r[0] !== '' && !isNaN(parseFloat(r[0])))
       .map(r => ({
@@ -835,46 +834,50 @@ async function loadData(forceRefresh = false) {
         sgaBody:     r[15] || '',
         priority:    parseInt(r[16]) || 0,
       }));
+    console.log('🔵 Records built:', state.records.length);
 
-    // Discover unique weeks in the order they appear (preserves Week 1, 2, 3...)
+    console.log('🔵 Discovering weeks...');
     state.weeks = [...new Set(state.records.map(r => r.week).filter(Boolean))];
+    console.log('🔵 Weeks found:', state.weeks);
 
-    // Build per-week metadata by looking at the first record for each week
+    console.log('🔵 Building week metadata...');
     state.weekMeta = {};
     state.weeks.forEach((wk, i) => {
       const weekRecords = state.records.filter(r => r.week === wk);
       const first = weekRecords[0];
-
-      // Count how many responses per category for this week
       const catCounts = {};
       weekRecords.forEach(r => {
         if (r.category) catCounts[r.category] = (catCounts[r.category] || 0) + 1;
       });
-
       state.weekMeta[wk] = {
         question:  first.question,
         location:  first.location,
         incentive: first.incentive,
         responses: weekRecords.length,
         color:     C.weekColors[i % C.weekColors.length],
-        catCounts, // e.g. {"Parking & Transportation": 44, "Campus Dining": 14, ...}
+        catCounts,
       };
     });
+    console.log('🔵 Week metadata built');
 
-    // Discover unique categories sorted by total frequency (most common first)
+    console.log('🔵 Building categories...');
     const catFreq = {};
     state.records.forEach(r => { if (r.category) catFreq[r.category] = (catFreq[r.category] || 0) + 1; });
     state.categories = Object.entries(catFreq).sort((a,b) => b[1]-a[1]).map(([c]) => c);
+    console.log('🔵 Categories:', state.categories.length);
 
-    // Update the three header stats
+    console.log('🔵 Updating header stats...');
     document.getElementById('stat-total').textContent = state.records.length;
     document.getElementById('stat-weeks').textContent = state.weeks.length;
     document.getElementById('stat-cats').textContent  = state.categories.length;
 
-    // Hide the loading screen and render the dashboard
+    console.log('🔵 Hiding loading overlay...');
     document.getElementById('loading-overlay').classList.add('hidden');
+    console.log('🔵 Building week filter buttons...');
     buildWeekFilterButtons();
+    console.log('🔵 Rendering active tab...');
     renderActiveTab();
+    console.log('✅ Dashboard fully loaded!');
 
   } catch (err) {
     document.getElementById('loading-text').innerHTML =
