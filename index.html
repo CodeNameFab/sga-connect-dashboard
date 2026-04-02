@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1334,85 +1335,206 @@ function toggleBodyCard(i) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  TAB 5: ACTION PLAN
-//  This tab generates recommended actions based on what the data
-//  actually shows — so it stays relevant as new data is added.
+//  TAB 5: ACTION PLAN — FULLY DYNAMIC
+//
+//  HOW THIS WORKS:
+//  1. We read the live filtered records to find each SGA body's
+//     top categories by response count.
+//  2. We look up those categories in CATEGORY_ACTIONS — a map
+//     of every category to a list of recommended action items.
+//  3. We build each body's action list from their actual top issues,
+//     sorted by how many student responses back each category.
+//  4. Each action item shows a response count badge — so the
+//     President can see the data behind every recommendation.
+//  5. Adding Week 7 data automatically updates this tab.
 // ══════════════════════════════════════════════════════════════════
+
+/*
+  CATEGORY_ACTIONS maps every possible category to action items.
+  Each action has:
+    tier  — Tier 1 (act now), Tier 2 (needs advocacy), Tier 3 (long-term)
+    body  — which SGA body owns this action
+    item  — the actual recommendation text
+  
+  When a category appears strongly in the data, its actions surface.
+  When a category is rare or absent, its actions stay hidden.
+*/
+const CATEGORY_ACTIONS = {
+  'Parking & Transportation': [
+    { tier:'Tier 1', body:'Student Affairs Committee + Executive Branch', item:'Present compiled parking data (pricing, availability, enforcement concerns) to WSU Parking Services and formally request a policy review' },
+    { tier:'Tier 1', body:'Student Affairs Committee + Executive Branch', item:'Draft and circulate a student parking petition to strengthen advocacy leverage with administration' },
+    { tier:'Tier 2', body:'Student Affairs Committee + Executive Branch', item:'Advocate for reduced parking pass pricing for commuter students specifically' },
+    { tier:'Tier 2', body:'Student Affairs Committee + Executive Branch', item:'Request a review of parking violation fine amounts — propose tiered or reduced penalty structure' },
+    { tier:'Tier 2', body:'Student Affairs Committee + Executive Branch', item:'Push for expanded student-only parking zones near high-traffic buildings (engineering, Shocker Hall, Hubbard Hall)' },
+    { tier:'Tier 2', body:'Student Affairs Committee + Executive Branch', item:'Advocate for Wubers service to be extended to all students year-round' },
+    { tier:'Tier 3', body:'Student Body President + Executive Branch',   item:'Begin long-term planning for expanded parking infrastructure with Facilities and Board of Regents' },
+  ],
+  'Academic Support & Resources': [
+    { tier:'Tier 1', body:'Legislative Branch', item:'Draft resolution against mandatory paid learning platforms (e.g. Zybooks, McGraw Hill) requiring students to purchase third-party access' },
+    { tier:'Tier 1', body:'Executive Branch',   item:'Partner with Shocker Success Center to expand tutoring hours and improve scheduling accessibility' },
+    { tier:'Tier 1', body:'Executive Branch',   item:'Advocate for improved advisor-to-student ratios — present data showing booking delays affecting course registration' },
+    { tier:'Tier 2', body:'Legislative Branch', item:'Investigate grading policy inconsistencies across colleges and push for transparent, student-protective standards' },
+    { tier:'Tier 2', body:'Legislative Branch', item:'Push for more consistent course offerings (especially engineering) so students aren't delayed in graduation timelines' },
+    { tier:'Tier 2', body:'Legislative Branch', item:'Request a formal review of professor evaluation processes — advocate for evaluations to have real impact on faculty accountability' },
+    { tier:'Tier 2', body:'Executive Branch',   item:'Audit Blackboard and other academic technology tools based on student usability concerns — escalate to IT Services' },
+    { tier:'Tier 2', body:'Executive Branch',   item:'Advocate for built-in weather buffer days in the academic calendar to allow cancellations without academic penalty' },
+  ],
+  'Affordability & Financial Access': [
+    { tier:'Tier 2', body:'Legislative Branch',                        item:'Research and publish a scholarship gap report identifying underserved majors (fine arts, non-STEM, non-business) lacking adequate financial aid' },
+    { tier:'Tier 2', body:'Legislative Branch',                        item:'Advocate for expanded WSU-specific scholarship offerings to reduce reliance on external aid' },
+    { tier:'Tier 2', body:'Student Body President + Executive Branch', item:'Formally present tuition affordability data to university administration — request transparency on fee structures' },
+    { tier:'Tier 3', body:'Student Body President + Executive Branch', item:'Begin long-term advocacy with Board of Regents on tuition structure reform and flat-rate tuition options for full-time students' },
+    { tier:'Tier 3', body:'Student Body President + Executive Branch', item:'Escalate budget cut impact data to administration — advocate for protecting student-facing services from further cuts' },
+  ],
+  'Community & Campus Experience': [
+    { tier:'Tier 1', body:'Executive Branch',                          item:'Audit WSU's digital communication channels (website, email, social media) and propose a more effective student-facing communication strategy' },
+    { tier:'Tier 1', body:'Director of Community Engagement',          item:'Improve RSC tabling and event announcements — explore digital signage, SMS alerts, and social media promotion' },
+    { tier:'Tier 2', body:'Executive Branch',                          item:'Advocate for expanded staffing in high-demand student-facing offices to reduce wait times' },
+    { tier:'Tier 2', body:'Student Body President + Executive Branch', item:'Present SGA Connect semester findings to university leadership in a formal briefing — use data to drive institutional priorities' },
+    { tier:'Tier 2', body:'Student Body President + Executive Branch', item:'Establish a formal student feedback loop so students can see how their input translates to action' },
+  ],
+  'Student Engagement & Campus Life': [
+    { tier:'Tier 1', body:'Director of Community Engagement',          item:'Plan therapy dog and stress-relief events in collaboration with Counseling & Wellness Center' },
+    { tier:'Tier 1', body:'Director of Community Engagement',          item:'Develop mid-semester programming to address the documented drop-off in events and engagement after Week 3' },
+    { tier:'Tier 1', body:'Director of Community Engagement',          item:'Organize major-based mixer events so students can build networks within their academic field' },
+    { tier:'Tier 2', body:'Student Affairs Committee + Executive Branch', item:'Advocate for earlier disbursement of student organization funding before the academic year begins' },
+    { tier:'Tier 2', body:'Student Affairs Committee + Executive Branch', item:'Push for greater FSL institutional recognition and dedicated staff support aligned with student org needs' },
+    { tier:'Tier 2', body:'Executive Branch',                          item:'Partner with Career Services to expand internship and major-connected job opportunities for students' },
+  ],
+  'Student Support & Inclusion': [
+    { tier:'Tier 1', body:'Executive Branch',                          item:'Develop targeted support programs for international and transfer students to increase involvement beyond niche organizations' },
+    { tier:'Tier 1', body:'Executive Branch',                          item:'Create dedicated tax filing support resources for international students in partnership with Financial Aid' },
+    { tier:'Tier 2', body:'Legislative Branch',                        item:'Review and strengthen non-discrimination policy enforcement — propose clearer accountability standards for student organizations' },
+    { tier:'Tier 2', body:'Executive Branch',                          item:'Advocate for retention programs specifically supporting underrepresented student populations' },
+    { tier:'Tier 3', body:'Student Body President + Executive Branch', item:'Monitor and formally respond to Kansas legislative actions affecting DEI programs — represent student interests at the administrative level' },
+  ],
+  'Campus Dining': [
+    { tier:'Tier 1', body:'Student Affairs Committee + Executive Branch', item:'Push for online ordering capability at RSC food vendors to improve convenience and reduce wait times' },
+    { tier:'Tier 2', body:'Student Affairs Committee + Executive Branch', item:'Advocate for expanded late-night food options for students who study or work late' },
+    { tier:'Tier 2', body:'Student Affairs Committee + Executive Branch', item:'Present student dining feedback (variety, pricing, quality) to Dining Services — request menu and vendor review' },
+  ],
+  'Campus Facilities & Beautification': [
+    { tier:'Tier 1', body:'Legislative Affairs Committee',             item:'Submit a facilities repair request for broken clocks, malfunctioning doors, and minor maintenance issues across campus buildings' },
+    { tier:'Tier 1', body:'Executive Branch',                          item:'Advocate for female hygiene products to be stocked in women's restrooms across campus' },
+    { tier:'Tier 2', body:'Executive Branch',                          item:'Push for expanded free printing access for students — partner with IT Services on a pilot program' },
+    { tier:'Tier 2', body:'Legislative Affairs Committee',             item:'Advocate for water system upgrades in older campus buildings where water quality has been flagged by students' },
+    { tier:'Tier 2', body:'Legislative Affairs Committee',             item:'Request upgraded practice rooms in Duerksen Fine Arts Center to better support music students' },
+  ],
+  'Health & Wellness': [
+    { tier:'Tier 1', body:'Director of Community Engagement',          item:'Host self-care and stress-relief events during finals season in partnership with the Counseling Center' },
+    { tier:'Tier 2', body:'Executive Branch',                          item:'Advocate for increased funding for mental health counseling services — present data on student demand vs. capacity' },
+    { tier:'Tier 2', body:'Executive Branch',                          item:'Push for a permanent vision clinic or expanded healthcare services on campus to improve student access to care' },
+  ],
+  'Housing': [
+    { tier:'Tier 2', body:'Executive Branch', item:'Present student housing quality concerns (Shocker Hall amenities, washer/dryer availability) to Residence Life and advocate for improvements' },
+    { tier:'Tier 3', body:'Executive Branch', item:'Advocate for more affordable upperclassmen housing options as a long-term institutional priority' },
+  ],
+  'General Campus Engagement': [
+    { tier:'Tier 1', body:'Director of Community Engagement', item:'Plan free food social events and cultural showcases to increase casual student engagement' },
+    { tier:'Tier 1', body:'Director of Community Engagement', item:'Coordinate free meal day at RSC with dining services' },
+    { tier:'Tier 1', body:'Director of Community Engagement & Programming Committee', item:'Organize recreational tournaments and outdoor activities to drive student participation' },
+  ],
+  'Cultural & Identity-Based Programming': [
+    { tier:'Tier 1', body:'Director of Community Engagement & Programming Committee', item:'Organize a cultural showcase or heritage event celebrating the diversity of WSU's student body' },
+    { tier:'Tier 2', body:'Executive Branch + Programming Committee',  item:'Advocate for increased institutional funding for cultural student organizations' },
+  ],
+  'Health & Wellness Programming': [
+    { tier:'Tier 1', body:'Director of Community Engagement',          item:'Host wellness events (meditation, yoga, therapy dogs) timed around midterms and finals for maximum student impact' },
+  ],
+  'Campus Safety': [
+    { tier:'Tier 1', body:'Legislative Affairs Committee',             item:'Submit crosswalk safety concerns to Public Safety — advocate for better pedestrian enforcement' },
+    { tier:'Tier 2', body:'Legislative Affairs Committee',             item:'Request improved winter weather response (snow/ice removal) for sidewalks, parking lots, and building entrances' },
+  ],
+};
+
+/*
+  SGA body display config — urgency label and color for each body.
+  This drives the badge shown on each action section card.
+*/
+const BODY_CONFIG = {
+  'Student Affairs Committee + Executive Branch': { label:'CRITICAL',  color:'var(--p1)'       },
+  'Executive Branch':                             { label:'HIGH',      color:'var(--p2)'       },
+  'Student Body President + Executive Branch':    { label:'STRATEGIC', color:'var(--purple)'   },
+  'Legislative Branch':                           { label:'MEDIUM',    color:'var(--gold-dark)'},
+  'Director of Community Engagement':             { label:'IMMEDIATE', color:'var(--green)'    },
+  'Director of Community Engagement & Programming Committee': { label:'PROGRAMMING', color:'var(--green)' },
+  'Legislative Affairs Committee':                { label:'FACILITIES',color:'var(--blue)'     },
+  'Executive Branch + Programming Committee':     { label:'EVENTS',    color:'var(--purple)'   },
+  'Executive Branch + VP of Programming':         { label:'EVENTS',    color:'var(--purple)'   },
+};
+
 function renderActions() {
   const records = getFilteredRecords();
 
-  // Build per-SGA-body action items based on top issues
-  const bodyMap = {};
+  /*
+    Step 1 — Count responses per category so we know which
+    issues are most urgent in the current filtered data.
+    This is what makes the tab data-driven.
+  */
+  const catCounts = {};
   records.forEach(r => {
-    if (!r.sgaBody || !r.category) return;
-    if (!bodyMap[r.sgaBody]) bodyMap[r.sgaBody] = {};
-    bodyMap[r.sgaBody][r.category] = (bodyMap[r.sgaBody][r.category] || 0) + 1;
+    if (r.category) catCounts[r.category] = (catCounts[r.category] || 0) + 1;
   });
 
   /*
-    This static map contains curated action recommendations.
-    We match them to SGA bodies dynamically so the right
-    recommendations show for whatever bodies appear in the data.
+    Step 2 — Build a flat list of all relevant action items,
+    each tagged with its response count from the live data.
+    We only include actions whose category appears in the data.
   */
-  const CURATED_ACTIONS = {
-    'Executive Branch': [
-      { tier:'Tier 1', item:'Partner with Facilities to address student amenity gaps (microwaves, study spaces in RSC)', cat:'Community & Campus Experience' },
-      { tier:'Tier 1', item:'Audit WSU digital platforms (website, Blackboard) based on student feedback', cat:'Community & Campus Experience' },
-      { tier:'Tier 2', item:'Coordinate with advising offices to improve appointment availability and quality', cat:'Academic Support & Resources' },
-      { tier:'Tier 2', item:'Advocate for extended RSC and campus facility hours through operations committee', cat:'Campus Facilities & Beautification' },
-    ],
-    'Student Affairs Committee + Executive Branch': [
-      { tier:'Tier 1', item:'Present parking pricing petition data to WSU Parking Services — request review', cat:'Parking & Transportation' },
-      { tier:'Tier 1', item:'Request improved winter weather response plan for sidewalks and parking lots', cat:'Parking & Transportation' },
-      { tier:'Tier 1', item:'Push for online ordering capability at RSC food vendors', cat:'Campus Dining' },
-      { tier:'Tier 2', item:'Advocate for bus notification system improvements with city transit partners', cat:'Parking & Transportation' },
-    ],
-    'Legislative Branch': [
-      { tier:'Tier 1', item:'Draft resolution against mandatory paid learning platforms (e.g. Zybooks)', cat:'Academic Support & Resources' },
-      { tier:'Tier 2', item:'Investigate grading policy inconsistencies across colleges — push for transparency', cat:'Academic Support & Resources' },
-      { tier:'Tier 2', item:'Research scholarship gaps for underrepresented and non-STEM majors', cat:'Affordability & Financial Access' },
-      { tier:'Tier 2', item:'Review non-discrimination policy enforcement and propose amendments if needed', cat:'Student Support & Inclusion' },
-    ],
-    'Director of Community Engagement': [
-      { tier:'Tier 1', item:'Plan therapy dog event in collaboration with Counseling & Wellness Center', cat:'General Campus Engagement' },
-      { tier:'Tier 1', item:'Organize major-based mixer nights so students connect with peers in their field', cat:'General Campus Engagement' },
-      { tier:'Tier 1', item:'Host potluck / cultural showcase event celebrating student diversity', cat:'General Campus Engagement' },
-      { tier:'Tier 1', item:'Coordinate free meal day at RSC with dining services', cat:'General Campus Engagement' },
-    ],
-    'Student Body President + Executive Branch': [
-      { tier:'Tier 3', item:'Begin long-term advocacy with Board of Regents on tuition structure reform', cat:'Affordability & Financial Access' },
-      { tier:'Tier 2', item:'Present SGA Connect findings to university administration in formal briefing', cat:'All Categories' },
-      { tier:'Tier 2', item:'Establish recurring SGA Connect → action tracking loop for future semesters', cat:'Process Improvement' },
-    ],
-  };
+  const allActions = [];
+  Object.entries(CATEGORY_ACTIONS).forEach(([cat, actions]) => {
+    const count = catCounts[cat] || 0;
+    if (count === 0) return; // skip categories with no responses
+    actions.forEach(a => {
+      allActions.push({ ...a, cat, count });
+    });
+  });
 
-  const PRIORITY_LABELS = {
-    'Executive Branch':                            { label:'HIGH',      color:'var(--p2)' },
-    'Student Affairs Committee + Executive Branch':{ label:'CRITICAL',  color:'var(--p1)' },
-    'Legislative Branch':                          { label:'MEDIUM',    color:'var(--gold-dark)' },
-    'Director of Community Engagement':            { label:'IMMEDIATE', color:'var(--green)' },
-    'Student Body President + Executive Branch':   { label:'STRATEGIC', color:'var(--purple)' },
-  };
+  /*
+    Step 3 — Group actions by SGA body, sorted by total
+    response count backing that body's top issues.
+  */
+  const byBody = {};
+  allActions.forEach(a => {
+    if (!byBody[a.body]) byBody[a.body] = { actions:[], totalCount:0 };
+    byBody[a.body].actions.push(a);
+    byBody[a.body].totalCount += a.count;
+  });
 
-  // Only render sections for bodies that actually appear in the current data
-  const activeBodies = Object.keys(bodyMap).filter(b => CURATED_ACTIONS[b]);
+  // Sort bodies by total response count descending (most urgent first)
+  const sortedBodies = Object.entries(byBody)
+    .sort((a, b) => b[1].totalCount - a[1].totalCount);
 
-  // Also add any bodies with actions even if data doesn't have them (fallback)
-  const allBodies = [...new Set([...activeBodies, ...Object.keys(CURATED_ACTIONS)])];
+  // Sort each body's actions: Tier 1 first, then by response count
+  sortedBodies.forEach(([, data]) => {
+    data.actions.sort((a, b) => {
+      const tierOrder = { 'Tier 1':0, 'Tier 2':1, 'Tier 3':2 };
+      if (tierOrder[a.tier] !== tierOrder[b.tier]) return tierOrder[a.tier] - tierOrder[b.tier];
+      return b.count - a.count;
+    });
+  });
 
-  const html = allBodies.map(body => {
-    const actions = CURATED_ACTIONS[body] || [];
-    if (!actions.length) return '';
-    const pl = PRIORITY_LABELS[body] || { label:'ACTION', color:'var(--gold)' };
+  /*
+    Step 4 — Render each body section as a card.
+    Each action item shows a response count badge so
+    the President can see exactly how many students raised that issue.
+  */
+  const html = sortedBodies.map(([body, data]) => {
+    const cfg = BODY_CONFIG[body] || { label:'ACTION', color:'var(--gold)' };
 
-    const actionsHtml = actions.map(a => {
+    const actionsHtml = data.actions.map(a => {
       const tierClass = a.tier === 'Tier 1' ? 'tier1' : a.tier === 'Tier 2' ? 'tier2' : 'tier3';
       return `
         <div class="action-row">
           <span class="tier-badge ${tierClass}">${a.tier}</span>
-          <div>
+          <div style="flex:1">
             <div class="action-item-text">${a.item}</div>
-            <div class="action-item-cat">Category: ${a.cat}</div>
+            <div style="display:flex;gap:10px;margin-top:4px;align-items:center">
+              <div class="action-item-cat">Category: ${a.cat}</div>
+              <span style="font-size:10px;font-weight:700;color:var(--gold-dark);background:#FDF6E8;border:1px solid #EDD99A;border-radius:4px;padding:1px 7px">
+                ${a.count} responses
+              </span>
+            </div>
           </div>
         </div>
       `;
@@ -1423,10 +1545,10 @@ function renderActions() {
         <div class="action-header">
           <div>
             <div class="action-body-name">${body}</div>
-            <div class="action-body-sub">${actions.length} recommended actions</div>
+            <div class="action-body-sub">${data.actions.length} recommended actions · backed by ${data.totalCount} student responses</div>
           </div>
-          <span class="priority-badge" style="color:${pl.color};background:${pl.color}18;border-color:${pl.color}55">
-            ${pl.label}
+          <span class="priority-badge" style="color:${cfg.color};background:${cfg.color}18;border-color:${cfg.color}55">
+            ${cfg.label}
           </span>
         </div>
         ${actionsHtml}
@@ -1434,8 +1556,10 @@ function renderActions() {
     `;
   }).join('');
 
-  document.getElementById('action-plan-container').innerHTML = html;
+  document.getElementById('action-plan-container').innerHTML =
+    html || '<div style="text-align:center;padding:40px;color:var(--text-dim)">No data available for current filter.</div>';
 }
+
 
 // ── START THE APP ─────────────────────────────────────────────────────────────
 /*
