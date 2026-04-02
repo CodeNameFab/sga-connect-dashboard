@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -483,6 +482,30 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: var(--border); }
     ::-webkit-scrollbar-thumb { background: #C4B89A; border-radius: 3px; }
+
+    /* ── REFRESH BUTTON ─────────────────────────────────────────── */
+    #refresh-btn {
+      background: transparent;
+      border: 1px solid #4A4840;
+      color: #9A9080;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    #refresh-btn:hover {
+      background: var(--gold);
+      color: #fff;
+      border-color: var(--gold);
+    }
+    #refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -520,6 +543,9 @@
             <div class="header-stat-value" id="stat-cats">—</div>
             <div class="header-stat-label">CATEGORIES</div>
           </div>
+          <button id="refresh-btn" onclick="refreshData()" title="Force refresh data from Google Sheets">
+            ↻ Refresh Data
+          </button>
         </div>
       </div>
       <div id="tabs">
@@ -719,17 +745,47 @@ function parseCSV(text) {
 }
 
 // ── FETCH + PROCESS DATA ──────────────────────────────────────────────────────
-async function loadData() {
-  try {
-    document.getElementById('loading-text').textContent = 'Fetching data from Google Sheets…';
+// ── CACHE CONFIG ──────────────────────────────────────────────────
+// How long to keep cached data before re-fetching (in milliseconds)
+// 10 minutes = 10 * 60 * 1000
+const CACHE_TTL  = 10 * 60 * 1000;
+const CACHE_KEY  = 'sga_connect_data';
+const CACHE_TIME = 'sga_connect_time';
 
+async function loadData(forceRefresh = false) {
+  try {
     /*
-      fetch() is the browser's built-in way to make HTTP requests.
-      We await it (pause until it's done) then convert the response to text.
+      Check if we have valid cached data in localStorage.
+      localStorage is the browser's built-in key-value store —
+      it persists across page refreshes but stays on this device.
     */
-    const response = await fetch(CSV_URL);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const text = await response.text();
+    const cachedText = localStorage.getItem(CACHE_KEY);
+    const cachedTime = localStorage.getItem(CACHE_TIME);
+    const cacheAge   = Date.now() - parseInt(cachedTime || 0);
+    const cacheValid = cachedText && cacheAge < CACHE_TTL;
+
+    let text;
+
+    if (!forceRefresh && cacheValid) {
+      // Cache hit — load instantly from localStorage
+      document.getElementById('loading-text').textContent = 'Loading from cache…';
+      text = cachedText;
+    } else {
+      // Cache miss or force refresh — fetch from Google Sheets
+      document.getElementById('loading-text').textContent = 'Fetching latest data from Google Sheets…';
+      const response = await fetch(CSV_URL);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      text = await response.text();
+
+      // Save to cache with current timestamp
+      try {
+        localStorage.setItem(CACHE_KEY, text);
+        localStorage.setItem(CACHE_TIME, Date.now().toString());
+      } catch(e) {
+        // localStorage might be full — not critical, just skip caching
+        console.warn('Cache write failed:', e);
+      }
+    }
 
     document.getElementById('loading-text').textContent = 'Processing responses…';
 
@@ -1567,6 +1623,32 @@ function renderActions() {
   we call loadData() which kicks off the whole chain:
   fetch → parse → process → render.
 */
+// ── REFRESH FUNCTION ──────────────────────────────────────────────
+/*
+  Called when the user clicks "Refresh Data".
+  Clears the cache and re-fetches from Google Sheets.
+  Use this after adding a new week to your sheet.
+*/
+async function refreshData() {
+  const btn = document.getElementById('refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Refreshing…'; }
+
+  // Clear cache
+  try {
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(CACHE_TIME);
+  } catch(e) {}
+
+  // Show loading overlay
+  document.getElementById('loading-overlay').classList.remove('hidden');
+  document.getElementById('loading-text').textContent = 'Fetching latest data from Google Sheets…';
+
+  await loadData(true);
+
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh Data'; }
+}
+
+// ── START THE APP ─────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', loadData);
 </script>
 </body>
