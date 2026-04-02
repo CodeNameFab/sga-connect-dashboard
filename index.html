@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SGA Connect Dashboard — Wichita State University</title>
+
+  <!--
+    CHART.JS — loaded from a CDN (Content Delivery Network).
+    This means no installation needed. The browser downloads it automatically.
+    We use it to draw bar charts, line charts, and donut charts.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!--
+    GOOGLE FONTS — loaded from Google's CDN.
+    Bebas Neue = the bold display font for numbers and headers.
+    Inter = the clean readable font for body text.
+  -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── CSS VARIABLES ──────────────────────────────────────────────
+       We define all colors once here so changing the theme later
+       is as simple as editing these values in one place.
+    ──────────────────────────────────────────────────────────────── */
+    :root {
+      --gold:        #D4A017;
+      --gold-light:  #F0C040;
+      --gold-dark:   #B8860B;
+      --page-bg:     #F0EDE6;
+      --header-bg:   #1E2028;
+      --card-bg:     #FFFFFF;
+      --card-alt:    #F7F5F0;
+      --border:      #DDD9D0;
+      --text:        #2C2A26;
+      --text-soft:   #6B6357;
+      --text-dim:    #8A8070;
+      --p1:          #C0392B;
+      --p2:          #C17F00;
+      --p3:          #7A7060;
+      --green:       #1A7A4A;
+      --blue:        #2563A8;
+      --purple:      #6D4FA0;
+      --week1:       #2563A8;
+      --week2:       #1A7A4A;
+      --week3:       #D4A017;
+      --week4:       #7D2E8D;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--page-bg);
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────────── */
+    #header {
+      background: var(--header-bg);
+      border-bottom: 3px solid var(--gold);
+      padding: 0 32px;
+    }
+    #header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    #header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0 8px;
+    }
+    #logo-area { display: flex; align-items: center; gap: 16px; }
+    #logo-badge {
+      width: 48px; height: 48px;
+      background: var(--gold);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px; font-weight: 900; color: #fff;
+      letter-spacing: 1px; flex-shrink: 0;
+    }
+    #title-main {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 24px; letter-spacing: 2.5px;
+      color: #fff; line-height: 1;
+    }
+    #title-sub {
+      font-size: 11px; color: #9A9080;
+      letter-spacing: 1.5px; margin-top: 3px;
+    }
+    #header-stats {
+      display: flex; gap: 28px; align-items: center;
+    }
+    .header-stat { text-align: center; }
+    .header-stat-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px; color: var(--gold-light); line-height: 1;
+    }
+    .header-stat-label {
+      font-size: 10px; color: #9A9080; letter-spacing: 1px;
+    }
+
+    /* ── TABS ───────────────────────────────────────────────────── */
+    #tabs {
+      display: flex; gap: 2px; margin-top: 14px;
+    }
+    .tab-btn {
+      background: transparent; color: #9A9080;
+      border: none; cursor: pointer;
+      padding: 10px 22px; border-radius: 8px 8px 0 0;
+      font-weight: 500; font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.18s ease;
+    }
+    .tab-btn:hover { background: #2E3240; color: #fff; }
+    .tab-btn.active { background: var(--gold); color: #fff; font-weight: 700; }
+
+    /* ── WEEK FILTER BAR ────────────────────────────────────────── */
+    #filter-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 32px;
+    }
+    #filter-bar-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .filter-label {
+      font-size: 11px; color: var(--text-dim);
+      letter-spacing: 1px; font-weight: 600;
+    }
+    .week-filter-btn {
+      background: #F5F3EF;
+      border: 1px solid var(--border);
+      color: var(--text-soft);
+      border-radius: 6px; padding: 5px 14px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; font-family: 'Inter', sans-serif;
+    }
+    .week-filter-btn.active {
+      color: #fff;
+    }
+    #filter-question {
+      font-size: 11px; color: var(--text-dim);
+      margin-left: 8px; font-style: italic;
+    }
+
+    /* ── LOADING / ERROR STATES ─────────────────────────────────── */
+    #loading-overlay {
+      position: fixed; inset: 0;
+      background: var(--page-bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 999; gap: 16px;
+    }
+    #loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-text {
+      font-size: 14px; color: var(--text-soft);
+    }
+
+    /* ── MAIN CONTENT AREA ──────────────────────────────────────── */
+    #main {
+      max-width: 1200px; margin: 0 auto;
+      padding: 28px 32px 80px;
+    }
+
+    /* Tab panels — only the active one is shown */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── CARDS ──────────────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+    .section-label {
+      font-size: 10px; font-weight: 700;
+      color: var(--text-dim); letter-spacing: 2px;
+      text-transform: uppercase; margin-bottom: 14px;
+    }
+
+    /* ── STAT CARDS (Overview top row) ──────────────────────────── */
+    #stat-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px; margin-bottom: 22px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      border-top: 3px solid var(--gold);
+    }
+    .stat-card-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 34px; letter-spacing: 1px; line-height: 1;
+    }
+    .stat-card-label {
+      font-size: 13px; font-weight: 700;
+      color: var(--text); margin-top: 2px;
+    }
+    .stat-card-sub {
+      font-size: 11px; color: var(--text-soft);
+      margin-top: 4px; line-height: 1.4;
+    }
+
+    /* ── TWO-COLUMN CHART LAYOUT ────────────────────────────────── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 18px; margin-bottom: 18px;
+    }
+    @media (max-width: 768px) {
+      .chart-row { grid-template-columns: 1fr; }
+    }
+
+    /* ── PRIORITY LEGEND ────────────────────────────────────────── */
+    .priority-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .priority-legend-row {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .legend-dot-label { display: flex; align-items: center; gap: 8px; }
+    .legend-dot {
+      width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
+    }
+
+    /* ── HEATMAP TABLE ──────────────────────────────────────────── */
+    .heatmap-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .heatmap-table th {
+      padding: 8px 12px; text-align: left;
+      color: var(--text-dim); font-weight: 600;
+      font-size: 10px; letter-spacing: 1px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .heatmap-table th.center { text-align: center; }
+    .heatmap-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #F0EDE6;
+    }
+    .heatmap-table tr:hover td { background: #FAFAF8; }
+    .heatmap-table td.center { text-align: center; }
+    .p1-val { color: var(--p1); font-weight: 700; }
+    .p2-val { color: var(--p2); font-weight: 700; }
+    .p3-val { color: var(--p3); font-weight: 700; }
+    .total-val { color: var(--gold-dark); font-weight: 700; }
+    .bar-cell { display: flex; align-items: center; gap: 6px; justify-content: center; }
+    .mini-bar-track {
+      width: 50px; height: 6px;
+      background: var(--border); border-radius: 3px; overflow: hidden;
+    }
+    .mini-bar-fill { height: 100%; border-radius: 3px; }
+
+    /* ── WEEK CARDS ─────────────────────────────────────────────── */
+    .week-cards-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px; margin-bottom: 20px;
+    }
+    .week-card {
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      border-radius: 12px; padding: 20px;
+      cursor: pointer;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+    .week-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+    }
+    .week-card.active-card { border-width: 2px; }
+    .week-card-header {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 12px;
+    }
+    .week-card-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px; letter-spacing: 1.5px;
+    }
+    .week-card-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .week-card-count {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 30px; color: var(--text); text-align: right;
+    }
+    .week-card-count-sub { font-size: 10px; color: var(--text-dim); }
+    .week-question-box {
+      background: var(--card-alt);
+      border-radius: 8px; padding: 10px 14px;
+      margin-bottom: 12px;
+    }
+    .week-question-label { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
+    .week-question-text { font-size: 12px; font-weight: 500; line-height: 1.4; color: var(--text); }
+    .week-cat-label { font-size: 10px; color: var(--text-dim); margin-bottom: 8px; }
+    .week-cat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+    .week-cat-bar-track {
+      width: 28px; height: 5px;
+      background: var(--border); border-radius: 3px; overflow: hidden; flex-shrink: 0;
+    }
+    .week-cat-bar-fill { height: 100%; border-radius: 3px; }
+    .week-cat-name { font-size: 11px; }
+    .week-cat-count { font-size: 11px; color: var(--text-dim); margin-left: auto; }
+
+    /* ── INSIGHT BOX ────────────────────────────────────────────── */
+    .insight-box {
+      margin-top: 14px; padding: 12px 16px;
+      background: #FBF9F3;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--gold);
+      border-radius: 8px; font-size: 12px; color: var(--text-soft);
+      line-height: 1.6;
+    }
+    .insight-box strong { color: var(--text); }
+    .insight-box em { color: var(--gold-dark); font-style: normal; font-weight: 700; }
+
+    /* ── STUDENT VOICE ──────────────────────────────────────────── */
+    #voice-filters {
+      display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;
+    }
+    #voice-search {
+      flex: 1; min-width: 220px;
+      background: #fff; border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px;
+      padding: 9px 14px; font-size: 13px;
+      font-family: 'Inter', sans-serif;
+    }
+    #voice-search:focus { outline: none; border-color: var(--gold); }
+    #voice-cat-filter {
+      background: #fff; border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px;
+      padding: 9px 14px; font-size: 12px;
+      cursor: pointer; font-family: 'Inter', sans-serif;
+    }
+    #voice-cat-filter:focus { outline: none; }
+    #voice-count { font-size: 12px; color: var(--text-dim); padding: 9px 0; }
+    #voice-count strong { color: var(--gold-dark); }
+    .quotes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+    .quote-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .quote-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .quote-card-top {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 10px;
+    }
+    .quote-text {
+      font-size: 13px; color: var(--text);
+      line-height: 1.55; margin-bottom: 12px;
+      font-style: italic;
+    }
+    .quote-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge {
+      font-size: 10px; font-weight: 700;
+      border-radius: 4px; padding: 2px 7px;
+      border: 1px solid; white-space: nowrap;
+    }
+    .badge-p1 { color: var(--p1); background: #FDF0EF; border-color: #F0C4C2; }
+    .badge-p2 { color: var(--p2); background: #FDF6E8; border-color: #EDD99A; }
+    .badge-p3 { color: var(--p3); background: #F5F5F3; border-color: #C8C4BC; }
+    .badge-cat { color: var(--text-soft); background: #F5F3EF; border-color: var(--border); }
+    .badge-sub { color: var(--text-dim); background: #FAFAFA; border-color: var(--border); }
+    .no-results {
+      text-align: center; padding: 60px 0;
+      color: var(--text-dim); font-size: 14px;
+    }
+    .no-results-icon { font-size: 32px; margin-bottom: 10px; }
+
+    /* ── SGA OWNERSHIP ──────────────────────────────────────────── */
+    .info-callout {
+      margin-bottom: 18px; padding: 14px 18px;
+      background: #FBF9F3;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--gold);
+      border-radius: 8px; font-size: 12px; color: var(--text-soft);
+    }
+    .info-callout strong { color: var(--text); }
+    .body-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px; margin-bottom: 20px;
+    }
+    .body-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .body-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .body-card-header {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 10px;
+    }
+    .body-name { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.4; }
+    .body-pct { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+    .body-count {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 34px; margin-left: 12px;
+    }
+    .body-progress-track {
+      width: 100%; height: 5px; background: var(--border);
+      border-radius: 3px; overflow: hidden; margin-bottom: 10px;
+    }
+    .body-progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+    .body-cats-expanded {
+      border-top: 1px solid var(--border);
+      padding-top: 12px; margin-top: 4px;
+    }
+    .body-cats-label {
+      font-size: 10px; color: var(--text-dim);
+      letter-spacing: 1px; margin-bottom: 8px;
+    }
+    .body-cat-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+    .body-cat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .body-cat-name { font-size: 12px; color: var(--text); }
+    .body-toggle { font-size: 10px; color: var(--text-dim); margin-top: 8px; text-align: right; }
+
+    /* ── ACTION PLAN ────────────────────────────────────────────── */
+    .action-section { margin-bottom: 18px; }
+    .action-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 14px;
+    }
+    .action-body-name { font-size: 15px; font-weight: 700; color: var(--text); }
+    .action-body-sub { font-size: 11px; color: var(--text-soft); margin-top: 2px; }
+    .priority-badge {
+      font-size: 11px; font-weight: 700;
+      border-radius: 6px; padding: 4px 12px;
+      letter-spacing: 1px; border: 1px solid;
+    }
+    .action-row {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 11px 12px; border-radius: 8px;
+      transition: background 0.15s;
+    }
+    .action-row:hover { background: var(--card-alt); }
+    .tier-badge {
+      font-size: 10px; font-weight: 700;
+      border-radius: 4px; padding: 3px 8px;
+      border: 1px solid; white-space: nowrap; margin-top: 1px;
+      flex-shrink: 0;
+    }
+    .tier1 { color: var(--green); background: #EDFAF4; border-color: #A8DFC4; }
+    .tier2 { color: var(--p2);   background: #FDF6E8; border-color: #EDD99A; }
+    .tier3 { color: var(--p3);   background: #F5F5F3; border-color: #C8C4BC; }
+    .action-item-text { font-size: 13px; color: var(--text); font-weight: 500; line-height: 1.45; }
+    .action-item-cat { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+    .tier-legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+    .tier-legend-item { display: flex; align-items: center; gap: 8px; }
+    .tier-legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+    /* ── SCROLLBAR STYLING ──────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--border); }
+    ::-webkit-scrollbar-thumb { background: #C4B89A; border-radius: 3px; }
+
+    /* ── REFRESH BUTTON ─────────────────────────────────────────── */
+    #refresh-btn {
+      background: transparent;
+      border: 1px solid #4A4840;
+      color: #9A9080;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    #refresh-btn:hover {
+      background: var(--gold);
+      color: #fff;
+      border-color: var(--gold);
+    }
+    #refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── LOADING OVERLAY ─────────────────────────────────────────
+       Shows while we're fetching data from Google Sheets.
+       JavaScript hides it once data is loaded.
+  ──────────────────────────────────────────────────────────────── -->
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text">Loading SGA Connect data from Google Sheets…</div>
+  </div>
+
+  <!-- ── HEADER ─────────────────────────────────────────────────── -->
+  <div id="header">
+    <div id="header-inner">
+      <div id="header-top">
+        <div id="logo-area">
+          <div id="logo-badge">SGA</div>
+          <div>
+            <div id="title-main">SGA CONNECT — SPRING 2026</div>
+            <div id="title-sub">WICHITA STATE UNIVERSITY · STUDENT FEEDBACK INITIATIVE</div>
+          </div>
+        </div>
+        <div id="header-stats">
+          <div class="header-stat">
+            <div class="header-stat-value" id="stat-total">—</div>
+            <div class="header-stat-label">RESPONSES</div>
+          </div>
+          <div class="header-stat">
+            <div class="header-stat-value" id="stat-weeks">—</div>
+            <div class="header-stat-label">WEEKS</div>
+          </div>
+          <div class="header-stat">
+            <div class="header-stat-value" id="stat-cats">—</div>
+            <div class="header-stat-label">CATEGORIES</div>
+          </div>
+          <button id="refresh-btn" onclick="refreshData()" title="Force refresh data from Google Sheets">
+            ↻ Refresh Data
+          </button>
+        </div>
+      </div>
+      <div id="tabs">
+        <button class="tab-btn active" data-tab="overview">📊 Overview</button>
+        <button class="tab-btn" data-tab="weekly">📅 Week by Week</button>
+        <button class="tab-btn" data-tab="voice">💬 Student Voice</button>
+        <button class="tab-btn" data-tab="ownership">🏛 SGA Ownership</button>
+        <button class="tab-btn" data-tab="actions">✅ Action Plan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── WEEK FILTER BAR ─────────────────────────────────────────── -->
+  <div id="filter-bar">
+    <div id="filter-bar-inner">
+      <span class="filter-label">FILTER BY WEEK:</span>
+      <div id="week-filter-buttons"><!-- filled by JS --></div>
+      <span id="filter-question"></span>
+    </div>
+  </div>
+
+  <!-- ── MAIN CONTENT ────────────────────────────────────────────── -->
+  <div id="main">
+
+    <!-- OVERVIEW TAB -->
+    <div id="tab-overview" class="tab-panel active">
+      <div id="stat-cards"></div>
+      <div class="chart-row">
+        <div class="card">
+          <div class="section-label" id="bar-label">Response Volume by Category</div>
+          <canvas id="categoryBarChart" height="280"></canvas>
+        </div>
+        <div class="card">
+          <div class="section-label">Priority Distribution</div>
+          <canvas id="priorityDonutChart" height="200"></canvas>
+          <div class="priority-legend" id="priority-legend"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-label">Category Priority Heatmap</div>
+        <div style="overflow-x:auto">
+          <table class="heatmap-table" id="heatmap-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="center">Total</th>
+                <th class="center">Priority 1 (Immediate)</th>
+                <th class="center">Priority 2 (Mid-Term)</th>
+                <th class="center">Priority 3 (Long-Term)</th>
+                <th class="center">P1 %</th>
+              </tr>
+            </thead>
+            <tbody id="heatmap-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- WEEKLY TAB -->
+    <div id="tab-weekly" class="tab-panel">
+      <div class="week-cards-grid" id="week-cards-container"></div>
+      <div class="card">
+        <div class="section-label">Response Volume Trend Across Weeks</div>
+        <canvas id="trendLineChart" height="180"></canvas>
+        <div class="insight-box" id="trend-insight"></div>
+      </div>
+    </div>
+
+    <!-- STUDENT VOICE TAB -->
+    <div id="tab-voice" class="tab-panel">
+      <div id="voice-filters">
+        <input id="voice-search" type="text" placeholder="🔍  Search student comments or sub-themes…" />
+        <select id="voice-cat-filter"><option value="All">All Categories</option></select>
+        <div id="voice-count"></div>
+      </div>
+      <div class="quotes-grid" id="quotes-grid"></div>
+    </div>
+
+    <!-- SGA OWNERSHIP TAB -->
+    <div id="tab-ownership" class="tab-panel">
+      <div class="info-callout">
+        <strong>How to read this:</strong> Each SGA body is responsible for a share of student feedback. Click any card to expand it and see which categories fall under their ownership.
+      </div>
+      <div class="body-cards-grid" id="body-cards-container"></div>
+      <div class="card">
+        <div class="section-label">Responses by SGA Body Responsible</div>
+        <canvas id="ownershipBarChart" height="220"></canvas>
+      </div>
+    </div>
+
+    <!-- ACTION PLAN TAB -->
+    <div id="tab-actions" class="tab-panel">
+      <div class="info-callout" style="border-left-color: var(--green); background: #F0FAF5; border-color: #B8E0CC;">
+        <strong>Recommended action items</strong> derived from student feedback across all SGA Connect sessions.
+        Organized by SGA body and action tier. Add new data to your Google Sheet and refresh to update.
+      </div>
+      <div id="action-plan-container"></div>
+      <div class="tier-legend">
+        <div class="tier-legend-item">
+          <div class="tier-legend-dot" style="background:var(--green)"></div>
+          <span style="font-size:11px;color:var(--text-soft)">Tier 1 — Immediate Action (can start now)</span>
+        </div>
+        <div class="tier-legend-item">
+          <div class="tier-legend-dot" style="background:var(--p2)"></div>
+          <span style="font-size:11px;color:var(--text-soft)">Tier 2 — Advocacy / Admin Collaboration Required</span>
+        </div>
+        <div class="tier-legend-item">
+          <div class="tier-legend-dot" style="background:var(--p3)"></div>
+          <span style="font-size:11px;color:var(--text-soft)">Tier 3 — Long-Term / Structural Change</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#main -->
+
+<script>
+/*
+  ════════════════════════════════════════════════════════════════
+  SGA CONNECT DASHBOARD — Live Google Sheets Version
+  ════════════════════════════════════════════════════════════════
+
+  HOW THIS WORKS:
+  1. We build a special URL that asks Google Sheets to give us
+     the Master sheet as a CSV file (comma-separated values).
+  2. We fetch that URL when the page loads.
+  3. We parse the CSV into an array of JavaScript objects.
+  4. We compute all stats, charts, and tables from that data.
+  5. When you add Week 5 to your sheet, step 4 just picks it up
+     automatically — no code changes needed.
+  ════════════════════════════════════════════════════════════════
+*/
+
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+/*
+  This is the "Publish to web" CSV URL from Google Sheets.
+  File → Share → Publish to web → Master SGA Connect Data → CSV
+  This URL is CORS-friendly, meaning JavaScript can fetch it
+  from any website (like GitHub Pages) without being blocked.
+  To add future weeks: just update your Master sheet — no code changes needed.
+*/
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRV40UDbklOBguXrXnOI4iBZhauFAr1h9ZWGPzer9wzZwBjz2JtqON5N0XimPtWf6d2y14Bo3U_NYRu/pub?gid=998010781&single=true&output=csv';
+
+// ── THEME COLORS (mirrors CSS variables) ──────────────────────────────────────
+const C = {
+  gold:   '#D4A017', goldDark: '#B8860B', goldLight: '#F0C040',
+  p1: '#C0392B', p2: '#C17F00', p3: '#7A7060',
+  green: '#1A7A4A', blue: '#2563A8', purple: '#6D4FA0',
+  border: '#DDD9D0', textSoft: '#6B6357', textDim: '#8A8070',
+  // A color palette for week chips — extends as more weeks are added
+  weekColors: ['#2563A8','#1A7A4A','#D4A017','#7D2E8D','#C0392B','#0891B2','#9D4EDD','#2D6A4F'],
+  // A color palette for SGA body cards
+  bodyColors: ['#D4A017','#2563A8','#6D4FA0','#1A7A4A','#C17F00','#C0392B','#7A7060','#0891B2'],
+};
+
+// ── GLOBAL STATE ──────────────────────────────────────────────────────────────
+/*
+  We keep all app state in one place so every part of the code
+  can access it. Think of this as the dashboard's "memory".
+*/
+let state = {
+  records:      [],    // all parsed rows from Google Sheets
+  weeks:        [],    // unique week names found in the data e.g. ["Week 1","Week 2"...]
+  weekMeta:     {},    // per-week info: question, location, incentive, responses
+  categories:   [],    // unique category names
+  activeTab:    'overview',
+  weekFilter:   'All', // which week is selected in the filter bar
+  charts:       {},    // stores Chart.js instances so we can destroy them on re-render
+  expandedBody: null,  // which SGA body card is open in the ownership tab
+};
+
+// ── CSV PARSER ────────────────────────────────────────────────────────────────
+/*
+  CSV PARSER
+  ──────────
+  Splits each line by comma, handling quoted fields that may
+  contain commas inside them (e.g. "Feedback, helpful").
+  Uses a simple state machine per character — reliable and fast
+  for the size of data we have (~465 rows).
+*/
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const result = [];
+
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    if (!line.trim()) continue;
+
+    const row = [];
+    let field = [];
+    let inQuote = false;
+
+    for (let i = 0; i <= line.length; i++) {
+      const ch = line[i];
+
+      if (i === line.length) {
+        // End of line — push final field
+        row.push(field.join('').trim());
+        break;
+      }
+
+      if (inQuote) {
+        if (ch === '"' && line[i+1] === '"') {
+          // Escaped quote inside quoted field
+          field.push('"');
+          i++;
+        } else if (ch === '"') {
+          // End of quoted field
+          inQuote = false;
+        } else {
+          field.push(ch);
+        }
+      } else {
+        if (ch === '"') {
+          inQuote = true;
+        } else if (ch === ',') {
+          row.push(field.join('').trim());
+          field = [];
+        } else {
+          field.push(ch);
+        }
+      }
+    }
+
+    if (row.some(Boolean)) result.push(row);
+  }
+
+  return result;
+}
+
+// ── FETCH + PROCESS DATA ──────────────────────────────────────────────────────
+// ── CACHE CONFIG ──────────────────────────────────────────────────
+// How long to keep cached data before re-fetching (in milliseconds)
+// 10 minutes = 10 * 60 * 1000
+
+async function loadData() {
+  try {
+    document.getElementById('loading-text').textContent = 'Fetching data from Google Sheets…';
+
+    const response = await fetch(CSV_URL);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const text = await response.text();
+
+    document.getElementById('loading-text').textContent = 'Processing responses…';
+
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error('Sheet appears empty');
+
+    state.records = rows.slice(1)
+      .filter(r => r[0] && r[0] !== '' && !isNaN(parseFloat(r[0])))
+      .map(r => ({
+        id:           r[0]  || '',
+        comment:      r[1]  || '',
+        category:     r[2]  || '',
+        subtheme:     r[3]  || '',
+        type:         r[4]  || '',
+        notes:        r[5]  || '',
+        week:         r[6]  || '',
+        question:     r[7]  || '',
+        date:         r[8]  || '',
+        location:     r[9]  || '',
+        incentive:    r[10] || '',
+        description:  r[11] || '',
+        feedbackType: r[12] || '',
+        actionTier:   r[13] || '',
+        stakeholder:  r[14] || '',
+        sgaBody:      r[15] || '',
+        priority:     parseInt(r[16]) || 0,
+      }));
+
+    state.weeks = [...new Set(state.records.map(r => r.week).filter(w => w && w.startsWith('Week')))];
+
+    state.weekMeta = {};
+    state.weeks.forEach((wk, i) => {
+      const weekRecords = state.records.filter(r => r.week === wk);
+      const first = weekRecords[0];
+      const catCounts = {};
+      weekRecords.forEach(r => {
+        if (r.category) catCounts[r.category] = (catCounts[r.category] || 0) + 1;
+      });
+      state.weekMeta[wk] = {
+        question:  first.question,
+        location:  first.location,
+        incentive: first.incentive,
+        responses: weekRecords.length,
+        color:     C.weekColors[i % C.weekColors.length],
+        catCounts,
+      };
+    });
+
+    const catFreq = {};
+    state.records.forEach(r => { if (r.category) catFreq[r.category] = (catFreq[r.category] || 0) + 1; });
+    state.categories = Object.entries(catFreq).sort((a,b) => b[1]-a[1]).map(([c]) => c);
+
+    document.getElementById('stat-total').textContent = state.records.length;
+    document.getElementById('stat-weeks').textContent = state.weeks.length;
+    document.getElementById('stat-cats').textContent  = state.categories.length;
+
+    document.getElementById('loading-overlay').classList.add('hidden');
+    buildWeekFilterButtons();
+    renderActiveTab();
+
+  } catch (err) {
+    document.getElementById('loading-text').innerHTML =
+      `<span style="color:#C0392B">⚠ Could not load data: ${err.message}<br>
+      Make sure your Google Sheet is set to "Anyone with the link can view".</span>`;
+    console.error('Dashboard load error:', err);
+  }
+}
+
+// ── WEEK FILTER BUTTONS ───────────────────────────────────────────────────────
+/*
+  This runs once after data loads. It creates one button per
+  discovered week, plus an "All" button. Because it reads
+  from state.weeks, it automatically adds a button for Week 5, 6, etc.
+*/
+function buildWeekFilterButtons() {
+  const container = document.getElementById('week-filter-buttons');
+  container.innerHTML = '';
+
+  ['All', ...state.weeks].forEach(wk => {
+    const btn = document.createElement('button');
+    btn.className = 'week-filter-btn' + (state.weekFilter === wk ? ' active' : '');
+    btn.textContent = wk;
+
+    // Set the button's accent color based on week (or gold for All)
+    const color = wk === 'All' ? C.gold : (state.weekMeta[wk]?.color || C.gold);
+    if (state.weekFilter === wk) {
+      btn.style.background = color;
+      btn.style.borderColor = color;
+    }
+
+    btn.addEventListener('click', () => {
+      state.weekFilter = wk;
+      buildWeekFilterButtons(); // re-render filter bar
+      renderActiveTab();         // re-render current tab with new filter
+      updateFilterQuestion();
+    });
+
+    container.appendChild(btn);
+  });
+
+  updateFilterQuestion();
+}
+
+function updateFilterQuestion() {
+  const el = document.getElementById('filter-question');
+  if (state.weekFilter !== 'All' && state.weekMeta[state.weekFilter]) {
+    el.textContent = `↳ "${state.weekMeta[state.weekFilter].question}"`;
+  } else {
+    el.textContent = '';
+  }
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.activeTab = btn.dataset.tab;
+
+    // Update visual state of tab buttons
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Show the right panel, hide others
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + state.activeTab).classList.add('active');
+
+    // Charts can only render into visible elements, so we render after switching
+    renderActiveTab();
+  });
+});
+
+function renderActiveTab() {
+  if      (state.activeTab === 'overview')   renderOverview();
+  else if (state.activeTab === 'weekly')     renderWeekly();
+  else if (state.activeTab === 'voice')      renderVoice();
+  else if (state.activeTab === 'ownership')  renderOwnership();
+  else if (state.activeTab === 'actions')    renderActions();
+}
+
+// ── HELPER: destroy a chart if it exists ──────────────────────────────────────
+/*
+  Chart.js throws an error if you try to create a chart on a canvas
+  that already has one. We always destroy first to prevent this.
+*/
+function destroyChart(key) {
+  if (state.charts[key]) {
+    state.charts[key].destroy();
+    delete state.charts[key];
+  }
+}
+
+// ── HELPER: get filtered records ──────────────────────────────────────────────
+function getFilteredRecords() {
+  if (state.weekFilter === 'All') return state.records;
+  return state.records.filter(r => r.week === state.weekFilter);
+}
+
+// ── HELPER: count by field ────────────────────────────────────────────────────
+function countBy(records, field) {
+  const counts = {};
+  records.forEach(r => {
+    const val = r[field];
+    if (val) counts[val] = (counts[val] || 0) + 1;
+  });
+  return counts; // { "Parking & Transportation": 47, ... }
+}
+
+// ── HELPER: short category names for charts ───────────────────────────────────
+function shortCat(name) {
+  const map = {
+    'Community & Campus Experience':       'Community',
+    'Parking & Transportation':            'Parking',
+    'Academic Support & Resources':        'Academics',
+    'Campus Dining':                       'Dining',
+    'General Campus Engagement':           'Engagement',
+    'Student Engagement & Campus Life':    'Student Life',
+    'Affordability & Financial Access':    'Affordability',
+    'Campus Facilities & Beautification':  'Facilities',
+    'Student Support & Inclusion':         'Inclusion',
+    'Health & Wellness':                   'Health',
+    'Health & Wellness Programming':       'Health Events',
+    'Recreational & Interactive Events':   'Recreation',
+    'Community-Building Events':           'Comm. Events',
+    'Housing':                             'Housing',
+    'Campus Safety':                       'Safety',
+    'Large-Scale Entertainment':           'Entertainment',
+    'Cultural & Identity-Based Programming':'Cultural',
+    'Student Transition & Belonging':      'Transition',
+    'Accessibility':                       'Accessibility',
+  };
+  return map[name] || name.split(' ').slice(0,2).join(' ');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 1: OVERVIEW
+// ══════════════════════════════════════════════════════════════════
+function renderOverview() {
+  const records = getFilteredRecords();
+  const total   = records.length;
+
+  // ── Stat cards ──────────────────────────────────────────────
+  const p1Count   = records.filter(r => r.priority === 1).length;
+  const tier1Count= records.filter(r => String(r.actionTier).includes('Tier 1') || r.actionTier === '1.0').length;
+
+  // Find top category
+  const catCounts = countBy(records, 'category');
+  const topCat    = Object.entries(catCounts).sort((a,b) => b[1]-a[1])[0] || ['—', 0];
+
+  document.getElementById('stat-cards').innerHTML = `
+    <div class="stat-card" style="border-top-color:var(--p1)">
+      <div class="stat-card-value" style="color:var(--p1)">${topCat[0].split(' ')[0]}</div>
+      <div class="stat-card-label">#1 Issue</div>
+      <div class="stat-card-sub">${topCat[1]} responses · Top category</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--green)">
+      <div class="stat-card-value" style="color:var(--green)">${tier1Count}</div>
+      <div class="stat-card-label">Immediate Action Items</div>
+      <div class="stat-card-sub">Tier 1 — ready to act on now</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--p1)">
+      <div class="stat-card-value" style="color:var(--p1)">${p1Count}</div>
+      <div class="stat-card-label">Priority 1 Issues</div>
+      <div class="stat-card-sub">Flagged as most urgent</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-value" style="color:var(--gold-dark)">${total}</div>
+      <div class="stat-card-label">Total Responses</div>
+      <div class="stat-card-sub">${state.weekFilter === 'All' ? 'All weeks combined' : state.weekFilter + ' only'}</div>
+    </div>
+  `;
+
+  // ── Category bar chart ───────────────────────────────────────
+  document.getElementById('bar-label').textContent =
+    'Response Volume by Category' + (state.weekFilter !== 'All' ? ` — ${state.weekFilter}` : '');
+
+  const sortedCats = Object.entries(catCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
+  destroyChart('categoryBar');
+  state.charts.categoryBar = new Chart(document.getElementById('categoryBarChart'), {
+    type: 'bar',
+    data: {
+      labels: sortedCats.map(([c]) => shortCat(c)),
+      datasets: [{
+        label: 'Responses',
+        data: sortedCats.map(([,v]) => v),
+        backgroundColor: C.gold,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y', // horizontal bar chart
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#EEE' }, ticks: { color: C.textDim, font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { color: '#888', font: { size: 11 } } },
+      }
+    }
+  });
+
+  // ── Priority donut ───────────────────────────────────────────
+  const p1 = records.filter(r => r.priority === 1).length;
+  const p2 = records.filter(r => r.priority === 2).length;
+  const p3 = records.filter(r => r.priority === 3).length;
+
+  destroyChart('priorityDonut');
+  state.charts.priorityDonut = new Chart(document.getElementById('priorityDonutChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Priority 1 – Immediate', 'Priority 2 – Mid-Term', 'Priority 3 – Long-Term'],
+      datasets: [{
+        data: [p1, p2, p3],
+        backgroundColor: [C.p1, C.p2, C.p3],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      cutout: '60%',
+      responsive: true,
+      plugins: { legend: { display: false } },
+    }
+  });
+
+  document.getElementById('priority-legend').innerHTML = [
+    { label: 'Priority 1 – Immediate', v: p1, c: C.p1 },
+    { label: 'Priority 2 – Mid-Term',  v: p2, c: C.p2 },
+    { label: 'Priority 3 – Long-Term', v: p3, c: C.p3 },
+  ].map(r => `
+    <div class="priority-legend-row">
+      <div class="legend-dot-label">
+        <div class="legend-dot" style="background:${r.c}"></div>
+        <span style="font-size:11px;color:var(--text-soft)">${r.label}</span>
+      </div>
+      <span style="font-weight:700;color:${r.c};font-size:13px">${r.v}</span>
+    </div>
+  `).join('');
+
+  // ── Heatmap table ────────────────────────────────────────────
+  /*
+    For each category, compute P1/P2/P3 counts and a % bar.
+    This is purely computed from the current filtered records.
+  */
+  const heatRows = Object.entries(catCounts)
+    .sort((a,b) => b[1]-a[1])
+    .filter(([,v]) => v >= 2)
+    .map(([cat, total]) => {
+      const catRecs = records.filter(r => r.category === cat);
+      const p1 = catRecs.filter(r => r.priority === 1).length;
+      const p2 = catRecs.filter(r => r.priority === 2).length;
+      const p3 = catRecs.filter(r => r.priority === 3).length;
+      const pct = Math.round((p1 / total) * 100);
+      const barColor = pct > 70 ? C.p1 : pct > 30 ? C.p2 : C.p3;
+      return `
+        <tr>
+          <td>${cat}</td>
+          <td class="center total-val">${total}</td>
+          <td class="center">${p1 > 0 ? `<span class="p1-val">${p1}</span>` : '<span style="color:var(--border)">—</span>'}</td>
+          <td class="center">${p2 > 0 ? `<span class="p2-val">${p2}</span>` : '<span style="color:var(--border)">—</span>'}</td>
+          <td class="center">${p3 > 0 ? `<span class="p3-val">${p3}</span>` : '<span style="color:var(--border)">—</span>'}</td>
+          <td class="center">
+            <div class="bar-cell">
+              <div class="mini-bar-track">
+                <div class="mini-bar-fill" style="width:${pct}%;background:${barColor}"></div>
+              </div>
+              <span style="font-size:10px;color:var(--text-soft);min-width:28px">${pct}%</span>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+  document.getElementById('heatmap-body').innerHTML = heatRows.join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 2: WEEK BY WEEK
+// ══════════════════════════════════════════════════════════════════
+function renderWeekly() {
+  // ── Week cards ───────────────────────────────────────────────
+  const cardsHtml = state.weeks.map(wk => {
+    const meta = state.weekMeta[wk];
+    const isActive = state.weekFilter === wk;
+    const topCats = Object.entries(meta.catCounts).sort((a,b) => b[1]-a[1]).slice(0, 5);
+    const maxCount = topCats[0]?.[1] || 1;
+
+    const catBarsHtml = topCats.map(([name, count], i) => `
+      <div class="week-cat-row">
+        <div class="week-cat-bar-track">
+          <div class="week-cat-bar-fill" style="width:${Math.round((count/maxCount)*100)}%;background:${i === 0 ? meta.color : meta.color + '77'}"></div>
+        </div>
+        <span class="week-cat-name" style="color:${i===0?'var(--text)':'var(--text-soft)'};font-weight:${i===0?600:400}">${shortCat(name)}</span>
+        <span class="week-cat-count">${count}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="week-card ${isActive ? 'active-card' : ''}" 
+           style="border-color:${isActive ? meta.color : 'var(--border)'}"
+           onclick="toggleWeekFromCard('${wk}')">
+        <div class="week-card-header">
+          <div>
+            <div class="week-card-title" style="color:${meta.color}">${wk}</div>
+            <div class="week-card-meta">${meta.location} · ${meta.incentive}</div>
+          </div>
+          <div>
+            <div class="week-card-count">${meta.responses}</div>
+            <div class="week-card-count-sub">responses</div>
+          </div>
+        </div>
+        <div class="week-question-box" style="border-left:3px solid ${meta.color}">
+          <div class="week-question-label">QUESTION ASKED</div>
+          <div class="week-question-text">"${meta.question}"</div>
+        </div>
+        <div class="week-cat-label">TOP CATEGORIES</div>
+        ${catBarsHtml}
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('week-cards-container').innerHTML = cardsHtml;
+
+  // ── Trend line chart ─────────────────────────────────────────
+  destroyChart('trendLine');
+  state.charts.trendLine = new Chart(document.getElementById('trendLineChart'), {
+    type: 'line',
+    data: {
+      labels: state.weeks,
+      datasets: [{
+        label: 'Responses',
+        data: state.weeks.map(wk => state.weekMeta[wk].responses),
+        borderColor: C.gold,
+        backgroundColor: C.gold + '30',
+        borderWidth: 2.5,
+        pointBackgroundColor: C.gold,
+        pointRadius: 6,
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: C.textDim } },
+        y: { grid: { color: '#EEE'  }, ticks: { color: C.textDim } },
+      }
+    }
+  });
+
+  // Dynamic insight: find the biggest week
+  const biggestWeek = state.weeks.reduce((a, b) =>
+    state.weekMeta[a].responses > state.weekMeta[b].responses ? a : b
+  );
+  const biggestMeta = state.weekMeta[biggestWeek];
+  const biggestPct  = Math.round((biggestMeta.responses / state.records.length) * 100);
+
+  document.getElementById('trend-insight').innerHTML = `
+    <strong>${biggestWeek}</strong> at ${biggestMeta.location} generated
+    <em>${biggestMeta.responses} responses</em> —
+    ${biggestPct}% of all feedback this semester.
+    ${biggestMeta.location !== state.weekMeta[state.weeks[0]]?.location
+      ? 'Moving tabling to high-traffic campus locations significantly increases reach.'
+      : ''}
+  `;
+}
+
+// Called when a week card is clicked — toggles week filter
+function toggleWeekFromCard(wk) {
+  state.weekFilter = state.weekFilter === wk ? 'All' : wk;
+  buildWeekFilterButtons();
+  renderWeekly(); // re-render just this tab (cards highlight changes)
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 3: STUDENT VOICE
+// ══════════════════════════════════════════════════════════════════
+function renderVoice() {
+  const records = getFilteredRecords().filter(r => r.comment);
+
+  // Populate category dropdown (only categories visible in current filter)
+  const cats = [...new Set(records.map(r => r.category).filter(Boolean))].sort();
+  const catSelect = document.getElementById('voice-cat-filter');
+  const currentCat = catSelect.value;
+  catSelect.innerHTML = '<option value="All">All Categories</option>' +
+    cats.map(c => `<option value="${c}" ${c === currentCat ? 'selected' : ''}>${c}</option>`).join('');
+
+  renderQuoteCards();
+
+  // Search and filter events (attach once via flag to avoid duplicates)
+  if (!document._voiceListeners) {
+    document._voiceListeners = true;
+    document.getElementById('voice-search').addEventListener('input', renderQuoteCards);
+    document.getElementById('voice-cat-filter').addEventListener('change', renderQuoteCards);
+  }
+}
+
+function renderQuoteCards() {
+  const searchVal = (document.getElementById('voice-search')?.value || '').toLowerCase();
+  const catVal    = document.getElementById('voice-cat-filter')?.value || 'All';
+  const records   = getFilteredRecords().filter(r => r.comment);
+
+  const filtered = records.filter(r => {
+    if (catVal !== 'All' && r.category !== catVal) return false;
+    if (searchVal && !r.comment.toLowerCase().includes(searchVal) &&
+        !r.subtheme.toLowerCase().includes(searchVal)) return false;
+    return true;
+  });
+
+  document.getElementById('voice-count').innerHTML =
+    `Showing <strong>${filtered.length}</strong> of ${records.length} comments`;
+
+  if (filtered.length === 0) {
+    document.getElementById('quotes-grid').innerHTML = `
+      <div class="no-results" style="grid-column:1/-1">
+        <div class="no-results-icon">🔍</div>
+        No comments match your filters
+      </div>`;
+    return;
+  }
+
+  const weekColorMap = {};
+  state.weeks.forEach((wk, i) => { weekColorMap[wk] = C.weekColors[i % C.weekColors.length]; });
+
+  document.getElementById('quotes-grid').innerHTML = filtered.map(r => {
+    const pClass = r.priority === 1 ? 'badge-p1' : r.priority === 2 ? 'badge-p2' : 'badge-p3';
+    const pLabel = r.priority === 1 ? 'P1' : r.priority === 2 ? 'P2' : r.priority === 3 ? 'P3' : '—';
+    const wkColor = weekColorMap[r.week] || C.gold;
+    return `
+      <div class="quote-card">
+        <div class="quote-card-top">
+          <span class="badge ${pClass}">${pLabel}</span>
+          <span class="badge" style="color:${wkColor};background:${wkColor}18;border-color:${wkColor}55">${r.week}</span>
+        </div>
+        <p class="quote-text">"${r.comment}"</p>
+        <div class="quote-tags">
+          <span class="badge badge-cat">${shortCat(r.category)}</span>
+          ${r.subtheme ? `<span class="badge badge-sub">${r.subtheme}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 4: SGA OWNERSHIP
+// ══════════════════════════════════════════════════════════════════
+function renderOwnership() {
+  const records = getFilteredRecords();
+  const total   = records.length;
+
+  // Compute per-SGA-body totals and top categories dynamically
+  const bodyMap = {};
+  records.forEach(r => {
+    if (!r.sgaBody) return;
+    if (!bodyMap[r.sgaBody]) bodyMap[r.sgaBody] = { total: 0, cats: {} };
+    bodyMap[r.sgaBody].total++;
+    if (r.category) bodyMap[r.sgaBody].cats[r.category] = (bodyMap[r.sgaBody].cats[r.category] || 0) + 1;
+  });
+
+  const bodies = Object.entries(bodyMap)
+    .sort((a,b) => b[1].total - a[1].total)
+    .map(([name, data], i) => ({
+      name, ...data,
+      color: C.bodyColors[i % C.bodyColors.length],
+      topCats: Object.entries(data.cats).sort((a,b) => b[1]-a[1]).slice(0,4).map(([c]) => c),
+    }));
+
+  // Body cards
+  document.getElementById('body-cards-container').innerHTML = bodies.map((b, i) => {
+    const pct     = Math.round((b.total / total) * 100);
+    const isOpen  = state.expandedBody === i;
+    const catsHtml = b.topCats.map(cat => `
+      <div class="body-cat-item">
+        <div class="body-cat-dot" style="background:${b.color}"></div>
+        <span class="body-cat-name">${cat}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="body-card" style="border-color:${isOpen ? b.color : 'var(--border)'}"
+           onclick="toggleBodyCard(${i})">
+        <div class="body-card-header">
+          <div>
+            <div class="body-name">${b.name}</div>
+            <div class="body-pct">${pct}% of all feedback</div>
+          </div>
+          <div class="body-count" style="color:${b.color}">${b.total}</div>
+        </div>
+        <div class="body-progress-track">
+          <div class="body-progress-fill" style="width:${pct}%;background:${b.color}"></div>
+        </div>
+        ${isOpen ? `
+          <div class="body-cats-expanded">
+            <div class="body-cats-label">OWNS THESE CATEGORIES</div>
+            ${catsHtml}
+          </div>
+        ` : ''}
+        <div class="body-toggle">${isOpen ? '▲ collapse' : '▼ view categories'}</div>
+      </div>
+    `;
+  }).join('');
+
+  // Ownership bar chart
+  destroyChart('ownershipBar');
+  const shortBody = (name) => name.split(' ').slice(0, 2).join(' ');
+  state.charts.ownershipBar = new Chart(document.getElementById('ownershipBarChart'), {
+    type: 'bar',
+    data: {
+      labels: bodies.map(b => shortBody(b.name)),
+      datasets: [{
+        label: 'Responses',
+        data: bodies.map(b => b.total),
+        backgroundColor: bodies.map(b => b.color),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#EEE' }, ticks: { color: C.textDim, font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { color: '#888', font: { size: 11 } } },
+      }
+    }
+  });
+}
+
+function toggleBodyCard(i) {
+  state.expandedBody = state.expandedBody === i ? null : i;
+  renderOwnership();
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 5: ACTION PLAN — FULLY DYNAMIC
+//
+//  HOW THIS WORKS:
+//  1. We read the live filtered records to find each SGA body's
+//     top categories by response count.
+//  2. We look up those categories in CATEGORY_ACTIONS — a map
+//     of every category to a list of recommended action items.
+//  3. We build each body's action list from their actual top issues,
+//     sorted by how many student responses back each category.
+//  4. Each action item shows a response count badge — so the
+//     President can see the data behind every recommendation.
+//  5. Adding Week 7 data automatically updates this tab.
+// ══════════════════════════════════════════════════════════════════
+
+/*
+  CATEGORY_ACTIONS maps every possible category to action items.
+  Each action has:
+    tier  — Tier 1 (act now), Tier 2 (needs advocacy), Tier 3 (long-term)
+    body  — which SGA body owns this action
+    item  — the actual recommendation text
+  
+  When a category appears strongly in the data, its actions surface.
+  When a category is rare or absent, its actions stay hidden.
+*/
+const CATEGORY_ACTIONS = {
+  "Parking & Transportation": [
+    { tier:"Tier 1", body:"Student Affairs Committee + Executive Branch", item:"Present compiled parking data (pricing, availability, enforcement concerns) to WSU Parking Services and formally request a policy review" },
+    { tier:"Tier 1", body:"Student Affairs Committee + Executive Branch", item:"Draft and circulate a student parking petition to strengthen advocacy leverage with administration" },
+    { tier:"Tier 2", body:"Student Affairs Committee + Executive Branch", item:"Advocate for reduced parking pass pricing for commuter students specifically" },
+    { tier:"Tier 2", body:"Student Affairs Committee + Executive Branch", item:"Request a review of parking violation fine amounts — propose tiered or reduced penalty structure" },
+    { tier:"Tier 2", body:"Student Affairs Committee + Executive Branch", item:"Push for expanded student-only parking zones near high-traffic buildings (engineering, Shocker Hall, Hubbard Hall)" },
+    { tier:"Tier 2", body:"Student Affairs Committee + Executive Branch", item:"Advocate for Wubers service to be extended to all students year-round" },
+    { tier:"Tier 3", body:"Student Body President + Executive Branch",   item:"Begin long-term planning for expanded parking infrastructure with Facilities and Board of Regents" },
+  ],
+  "Academic Support & Resources": [
+    { tier:"Tier 1", body:"Legislative Branch", item:"Draft resolution against mandatory paid learning platforms (e.g. Zybooks, McGraw Hill) requiring students to purchase third-party access" },
+    { tier:"Tier 1", body:"Executive Branch",   item:"Partner with Shocker Success Center to expand tutoring hours and improve scheduling accessibility" },
+    { tier:"Tier 1", body:"Executive Branch",   item:"Advocate for improved advisor-to-student ratios — present data showing booking delays affecting course registration" },
+    { tier:"Tier 2", body:"Legislative Branch", item:"Investigate grading policy inconsistencies across colleges and push for transparent, student-protective standards" },
+    { tier:"Tier 2", body:"Legislative Branch", item:"Push for more consistent course offerings (especially engineering) so students are not delayed in graduation timelines" },
+    { tier:"Tier 2", body:"Legislative Branch", item:"Request a formal review of professor evaluation processes — advocate for evaluations to have real impact on faculty accountability" },
+    { tier:"Tier 2", body:"Executive Branch",   item:"Audit Blackboard and other academic technology tools based on student usability concerns — escalate to IT Services" },
+    { tier:"Tier 2", body:"Executive Branch",   item:"Advocate for built-in weather buffer days in the academic calendar to allow cancellations without academic penalty" },
+  ],
+  "Affordability & Financial Access": [
+    { tier:"Tier 2", body:"Legislative Branch",                        item:"Research and publish a scholarship gap report identifying underserved majors (fine arts, non-STEM, non-business) lacking adequate financial aid" },
+    { tier:"Tier 2", body:"Legislative Branch",                        item:"Advocate for expanded WSU-specific scholarship offerings to reduce reliance on external aid" },
+    { tier:"Tier 2", body:"Student Body President + Executive Branch", item:"Formally present tuition affordability data to university administration — request transparency on fee structures" },
+    { tier:"Tier 3", body:"Student Body President + Executive Branch", item:"Begin long-term advocacy with Board of Regents on tuition structure reform and flat-rate tuition options for full-time students" },
+    { tier:"Tier 3", body:"Student Body President + Executive Branch", item:"Escalate budget cut impact data to administration — advocate for protecting student-facing services from further cuts" },
+  ],
+  "Community & Campus Experience": [
+    { tier:"Tier 1", body:"Executive Branch",                          item:"Audit WSU digital communication channels (website, email, social media) and propose a more effective student-facing communication strategy" },
+    { tier:"Tier 1", body:"Director of Community Engagement",          item:"Improve RSC tabling and event announcements — explore digital signage, SMS alerts, and social media promotion" },
+    { tier:"Tier 2", body:"Executive Branch",                          item:"Advocate for expanded staffing in high-demand student-facing offices to reduce wait times" },
+    { tier:"Tier 2", body:"Student Body President + Executive Branch", item:"Present SGA Connect semester findings to university leadership in a formal briefing — use data to drive institutional priorities" },
+    { tier:"Tier 2", body:"Student Body President + Executive Branch", item:"Establish a formal student feedback loop so students can see how their input translates to action" },
+  ],
+  "Student Engagement & Campus Life": [
+    { tier:"Tier 1", body:"Director of Community Engagement",             item:"Plan therapy dog and stress-relief events in collaboration with Counseling and Wellness Center" },
+    { tier:"Tier 1", body:"Director of Community Engagement",             item:"Develop mid-semester programming to address the documented drop-off in events and engagement after Week 3" },
+    { tier:"Tier 1", body:"Director of Community Engagement",             item:"Organize major-based mixer events so students can build networks within their academic field" },
+    { tier:"Tier 2", body:"Student Affairs Committee + Executive Branch", item:"Advocate for earlier disbursement of student organization funding before the academic year begins" },
+    { tier:"Tier 2", body:"Student Affairs Committee + Executive Branch", item:"Push for greater FSL institutional recognition and dedicated staff support aligned with student org needs" },
+    { tier:"Tier 2", body:"Executive Branch",                             item:"Partner with Career Services to expand internship and major-connected job opportunities for students" },
+  ],
+  "Student Support & Inclusion": [
+    { tier:"Tier 1", body:"Executive Branch",                          item:"Develop targeted support programs for international and transfer students to increase involvement beyond niche organizations" },
+    { tier:"Tier 1", body:"Executive Branch",                          item:"Create dedicated tax filing support resources for international students in partnership with Financial Aid" },
+    { tier:"Tier 2", body:"Legislative Branch",                        item:"Review and strengthen non-discrimination policy enforcement — propose clearer accountability standards for student organizations" },
+    { tier:"Tier 2", body:"Executive Branch",                          item:"Advocate for retention programs specifically supporting underrepresented student populations" },
+    { tier:"Tier 3", body:"Student Body President + Executive Branch", item:"Monitor and formally respond to Kansas legislative actions affecting DEI programs — represent student interests at the administrative level" },
+  ],
+  "Campus Dining": [
+    { tier:"Tier 1", body:"Student Affairs Committee + Executive Branch", item:"Push for online ordering capability at RSC food vendors to improve convenience and reduce wait times" },
+    { tier:"Tier 2", body:"Student Affairs Committee + Executive Branch", item:"Advocate for expanded late-night food options for students who study or work late" },
+    { tier:"Tier 2", body:"Student Affairs Committee + Executive Branch", item:"Present student dining feedback (variety, pricing, quality) to Dining Services — request menu and vendor review" },
+  ],
+  "Campus Facilities & Beautification": [
+    { tier:"Tier 1", body:"Legislative Affairs Committee",             item:"Submit a facilities repair request for broken clocks, malfunctioning doors, and minor maintenance issues across campus buildings" },
+    { tier:"Tier 1", body:"Executive Branch",                          item:"Advocate for female hygiene products to be stocked in womens restrooms across campus" },
+    { tier:"Tier 2", body:"Executive Branch",                          item:"Push for expanded free printing access for students — partner with IT Services on a pilot program" },
+    { tier:"Tier 2", body:"Legislative Affairs Committee",             item:"Advocate for water system upgrades in older campus buildings where water quality has been flagged by students" },
+    { tier:"Tier 2", body:"Legislative Affairs Committee",             item:"Request upgraded practice rooms in Duerksen Fine Arts Center to better support music students" },
+  ],
+  "Health & Wellness": [
+    { tier:"Tier 1", body:"Director of Community Engagement",          item:"Host self-care and stress-relief events during finals season in partnership with the Counseling Center" },
+    { tier:"Tier 2", body:"Executive Branch",                          item:"Advocate for increased funding for mental health counseling services — present data on student demand vs. capacity" },
+    { tier:"Tier 2", body:"Executive Branch",                          item:"Push for a permanent vision clinic or expanded healthcare services on campus to improve student access to care" },
+  ],
+  "Housing": [
+    { tier:"Tier 2", body:"Executive Branch", item:"Present student housing quality concerns (Shocker Hall amenities, washer and dryer availability) to Residence Life and advocate for improvements" },
+    { tier:"Tier 3", body:"Executive Branch", item:"Advocate for more affordable upperclassmen housing options as a long-term institutional priority" },
+  ],
+  "General Campus Engagement": [
+    { tier:"Tier 1", body:"Director of Community Engagement",                          item:"Plan free food social events and cultural showcases to increase casual student engagement" },
+    { tier:"Tier 1", body:"Director of Community Engagement",                          item:"Coordinate free meal day at RSC with dining services" },
+    { tier:"Tier 1", body:"Director of Community Engagement & Programming Committee",  item:"Organize recreational tournaments and outdoor activities to drive student participation" },
+  ],
+  "Cultural & Identity-Based Programming": [
+    { tier:"Tier 1", body:"Director of Community Engagement & Programming Committee", item:"Organize a cultural showcase or heritage event celebrating the diversity of WSU student body" },
+    { tier:"Tier 2", body:"Executive Branch + Programming Committee",                  item:"Advocate for increased institutional funding for cultural student organizations" },
+  ],
+  "Health & Wellness Programming": [
+    { tier:"Tier 1", body:"Director of Community Engagement", item:"Host wellness events (meditation, yoga, therapy dogs) timed around midterms and finals for maximum student impact" },
+  ],
+  "Campus Safety": [
+    { tier:"Tier 1", body:"Legislative Affairs Committee", item:"Submit crosswalk safety concerns to Public Safety — advocate for better pedestrian enforcement" },
+    { tier:"Tier 2", body:"Legislative Affairs Committee", item:"Request improved winter weather response (snow and ice removal) for sidewalks, parking lots, and building entrances" },
+  ],
+};
+
+/*
+  SGA body display config/*
+  SGA body display config — urgency label and color for each body.
+  This drives the badge shown on each action section card.
+*/
+const BODY_CONFIG = {
+  'Student Affairs Committee + Executive Branch': { label:'CRITICAL',  color:'var(--p1)'       },
+  'Executive Branch':                             { label:'HIGH',      color:'var(--p2)'       },
+  'Student Body President + Executive Branch':    { label:'STRATEGIC', color:'var(--purple)'   },
+  'Legislative Branch':                           { label:'MEDIUM',    color:'var(--gold-dark)'},
+  'Director of Community Engagement':             { label:'IMMEDIATE', color:'var(--green)'    },
+  'Director of Community Engagement & Programming Committee': { label:'PROGRAMMING', color:'var(--green)' },
+  'Legislative Affairs Committee':                { label:'FACILITIES',color:'var(--blue)'     },
+  'Executive Branch + Programming Committee':     { label:'EVENTS',    color:'var(--purple)'   },
+  'Executive Branch + VP of Programming':         { label:'EVENTS',    color:'var(--purple)'   },
+};
+
+function renderActions() {
+  const records = getFilteredRecords();
+
+  /*
+    Step 1 — Count responses per category so we know which
+    issues are most urgent in the current filtered data.
+    This is what makes the tab data-driven.
+  */
+  const catCounts = {};
+  records.forEach(r => {
+    if (r.category) catCounts[r.category] = (catCounts[r.category] || 0) + 1;
+  });
+
+  /*
+    Step 2 — Build a flat list of all relevant action items,
+    each tagged with its response count from the live data.
+    We only include actions whose category appears in the data.
+  */
+  const allActions = [];
+  Object.entries(CATEGORY_ACTIONS).forEach(([cat, actions]) => {
+    const count = catCounts[cat] || 0;
+    if (count === 0) return; // skip categories with no responses
+    actions.forEach(a => {
+      allActions.push({ ...a, cat, count });
+    });
+  });
+
+  /*
+    Step 3 — Group actions by SGA body, sorted by total
+    response count backing that body's top issues.
+  */
+  const byBody = {};
+  allActions.forEach(a => {
+    if (!byBody[a.body]) byBody[a.body] = { actions:[], totalCount:0 };
+    byBody[a.body].actions.push(a);
+    byBody[a.body].totalCount += a.count;
+  });
+
+  // Sort bodies by total response count descending (most urgent first)
+  const sortedBodies = Object.entries(byBody)
+    .sort((a, b) => b[1].totalCount - a[1].totalCount);
+
+  // Sort each body's actions: Tier 1 first, then by response count
+  sortedBodies.forEach(([, data]) => {
+    data.actions.sort((a, b) => {
+      const tierOrder = { 'Tier 1':0, 'Tier 2':1, 'Tier 3':2 };
+      if (tierOrder[a.tier] !== tierOrder[b.tier]) return tierOrder[a.tier] - tierOrder[b.tier];
+      return b.count - a.count;
+    });
+  });
+
+  /*
+    Step 4 — Render each body section as a card.
+    Each action item shows a response count badge so
+    the President can see exactly how many students raised that issue.
+  */
+  const html = sortedBodies.map(([body, data]) => {
+    const cfg = BODY_CONFIG[body] || { label:'ACTION', color:'var(--gold)' };
+
+    const actionsHtml = data.actions.map(a => {
+      const tierClass = a.tier === 'Tier 1' ? 'tier1' : a.tier === 'Tier 2' ? 'tier2' : 'tier3';
+      return `
+        <div class="action-row">
+          <span class="tier-badge ${tierClass}">${a.tier}</span>
+          <div style="flex:1">
+            <div class="action-item-text">${a.item}</div>
+            <div style="display:flex;gap:10px;margin-top:4px;align-items:center">
+              <div class="action-item-cat">Category: ${a.cat}</div>
+              <span style="font-size:10px;font-weight:700;color:var(--gold-dark);background:#FDF6E8;border:1px solid #EDD99A;border-radius:4px;padding:1px 7px">
+                ${a.count} responses
+              </span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="action-section card">
+        <div class="action-header">
+          <div>
+            <div class="action-body-name">${body}</div>
+            <div class="action-body-sub">${data.actions.length} recommended actions · backed by ${data.totalCount} student responses</div>
+          </div>
+          <span class="priority-badge" style="color:${cfg.color};background:${cfg.color}18;border-color:${cfg.color}55">
+            ${cfg.label}
+          </span>
+        </div>
+        ${actionsHtml}
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('action-plan-container').innerHTML =
+    html || '<div style="text-align:center;padding:40px;color:var(--text-dim)">No data available for current filter.</div>';
+}
+
+
+// ── START THE APP ─────────────────────────────────────────────────────────────
+/*
+  This is the entry point. When the page finishes loading,
+  we call loadData() which kicks off the whole chain:
+  fetch → parse → process → render.
+*/
+// ── REFRESH FUNCTION ──────────────────────────────────────────────
+async function refreshData() {
+  const btn = document.getElementById('refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Refreshing…'; }
+  document.getElementById('loading-overlay').classList.remove('hidden');
+  await loadData();
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh Data'; }
+}
+
+// ── START THE APP ─────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', loadData);
+</script>
+</body>
+</html>
